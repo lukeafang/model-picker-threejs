@@ -1,0 +1,196 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Creating 3D objects using Three.js app</title>
+    <link rel="stylesheet" type="text/css" href="assets/styles/style.css">
+    <!-- <script src="assets/js/three.js"></script> -->
+    <script src="assets/js/three.min.js"></script>
+    <script src="assets/js/OBJLoader.js"></script>
+    <script src="assets/js/MTLLoader.js"></script>
+    <script src="assets/js/OrbitControls.js"></script>
+    <script src="assets/js/Detector.js"></script>
+    <script src="assets/js/Projector.js"></script>
+    <style>
+      .modelDisplay {
+          /* float: left; */
+          width: 800; 
+          height: 400;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrapper"></div>
+    <div>
+      <p>List of items</p>
+    </div>
+    <div class="modelDisplay" id="model">
+        <script>
+            var container;
+            var camera, controls, scene, renderer, labelRenderer;
+            var lighting, ambient, keyLight, fillLight, backLight;
+            
+            var window_Height;
+            var window_Width;
+            // custom global variables
+            var targetList = [];
+            var projector, mouse = { x: 0, y: 0 };
+
+            var raycaster;
+
+            var picked_objects = [];
+            var cubeGeo;
+
+            var isShiftDown = false;
+
+
+            init();
+            render();
+            
+            function init(){
+              container = document.getElementById('model');
+              var positionInfo = container.getBoundingClientRect();
+              window_Height = positionInfo.height;
+              window_Width = positionInfo.width;
+
+              camera = new THREE.PerspectiveCamera(45, window_Width / window_Height, 1, 1000);
+              // camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+
+              camera.position.set(0, 0, 150);
+
+              scene = new THREE.Scene();
+              scene.background = new THREE.Color( 0x050505 );
+              
+              ambient = new THREE.AmbientLight(0xffffff, 1.0);
+              scene.add(ambient);
+              keyLight = new THREE.DirectionalLight(new THREE.Color('hsl(30, 100%, 75%)'), 1.0);
+              keyLight.position.set(-100, 0, 100);
+
+              fillLight = new THREE.DirectionalLight(new THREE.Color('hsl(240, 100%, 75%)'), 0.75);
+              fillLight.position.set(100, 0, 100);
+
+              backLight = new THREE.DirectionalLight(0xffffff, 1.0);
+              backLight.position.set(100, 0, -100).normalize();
+
+              scene.add(keyLight);
+              scene.add(fillLight);
+              scene.add(backLight);
+
+              var mtlLoader = new THREE.MTLLoader();;
+              mtlLoader.load('assets/models/odm_texturing/odm_textured_model.obj.mtl', function (materials) {
+                  materials.preload();
+
+                  var objLoader = new THREE.OBJLoader();
+                  objLoader.setMaterials(materials);
+                  objLoader.load('assets/models/odm_texturing/odm_textured_model.obj', function (object) {
+                    
+                    object.name = 'bridge';
+                    scene.add(object);
+                  });
+              });
+      
+              renderer = new THREE.WebGLRenderer();
+              renderer.setPixelRatio(window.devicePixelRatio);
+              renderer.setSize(window_Width, window_Height);
+
+              // renderer.setPixelRatio( window.devicePixelRatio );
+				      // renderer.setSize( window.innerWidth, window.innerHeight );
+
+              renderer.setClearColor(new THREE.Color("hsl(0, 0%, 10%)"));
+              container.appendChild(renderer.domElement);
+      
+              // controller
+              controls = new THREE.OrbitControls(camera, renderer.domElement);
+              controls.enableDamping = true;
+              controls.dampingFactor = 0.25;
+              controls.enableZoom = true; 
+              controls.minDistance = 30;
+              controls.maxDistance = 150;
+              controls.update();
+
+              // initialize object to perform world/screen calculations
+              projector = new THREE.Projector();
+
+              raycaster = new THREE.Raycaster(); // create once
+
+              // when the mouse moves, call the given function
+              document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+              document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+              document.addEventListener( 'keydown', onDocumentKeyDown, false );
+				      document.addEventListener( 'keyup', onDocumentKeyUp, false );
+
+              //picked cube
+              cubeGeo = new THREE.BoxBufferGeometry( 5, 5, 5 );
+            };
+
+            function render() {
+                requestAnimationFrame(render);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            function onDocumentMouseMove( event ) 
+            {
+
+            }
+
+            function onDocumentMouseUp( event ) 
+            {
+              event.preventDefault();
+              // update the mouse variable
+              mouse.x = ( event.clientX / window_Width ) * 2 - 1;
+              mouse.y = - ( event.clientY / window_Height ) * 2 + 1;
+              // mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+              // mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+              raycaster.setFromCamera( mouse, camera );
+              var intersects = raycaster.intersectObjects(scene.children, true);              
+              // if there is one (or more) intersections
+              if ( intersects.length > 0 )
+              {
+                var intersect = intersects[0];
+                console.log(intersect);
+                if( intersect.object.parent.name == 'bridge' ) {
+                  // click bridge, add
+                  console.log('picked');
+
+                  // var voxel = new THREE.Mesh( cubeGeo, cubeMaterial );
+                  var voxel = new THREE.Mesh( cubeGeo, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
+                  voxel.position.copy( intersect.point );
+
+                  // voxel.position.copy( intersect.point ).add( intersect.face.normal );
+                  // voxel.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+                  scene.add( voxel );
+                  picked_objects.push( voxel );
+                } else {
+                  if ( isShiftDown ) {
+                    // delete
+                    if ( intersect.object.parent.name != 'bridge' ) {
+                        scene.remove( intersect.object );
+                        picked_objects.splice( picked_objects.indexOf( intersect.object ), 1 );
+                    }
+                  } 
+                }
+                  // console.log(picked_objects);
+                  console.log(isShiftDown);
+              }
+            }
+
+            function onDocumentKeyDown( event ) {
+              switch ( event.keyCode ) {
+                case 16: isShiftDown = true; break;
+              }
+            }
+
+            function onDocumentKeyUp( event ) {
+              switch ( event.keyCode ) {
+                case 16: isShiftDown = false; break;
+              }
+            }
+
+         </script>
+    </div>
+
+
+  </body>
+</html>
