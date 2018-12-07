@@ -23,6 +23,7 @@
     <div id="wrapper"></div>
     <div>
       <p>Bridge</p>
+      <p id="keyStatus"></p>
     </div>
     <div class="modelDisplay" id="model">
         <script>
@@ -34,7 +35,7 @@
             var window_Width;
             // custom global variables
             var targetList = [];
-            var projector, mouse = { x: 0, y: 0 };
+            var mouse;
 
             var raycaster;
 
@@ -42,7 +43,8 @@
             var cubeGeo;
 
             var isShiftDown = false;
-
+            var isZDown = false;
+            var isXDown = false;
 
             init();
             render();
@@ -53,10 +55,12 @@
               window_Height = positionInfo.height;
               window_Width = positionInfo.width;
 
-              camera = new THREE.PerspectiveCamera(45, window_Width / window_Height, 1, 1000);
+              // camera = new THREE.PerspectiveCamera(45, window_Width / window_Height, 1, 1000);
               // camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
-
-              camera.position.set(0, 0, 150);
+              // camera.position.set(0, 0, 150);
+              camera = new THREE.PerspectiveCamera( 45, window_Width / window_Height, 1, 1000 );
+              camera.position.set( 0, 0, 100 );
+              
 
               scene = new THREE.Scene();
               scene.background = new THREE.Color( 0x050505 );
@@ -78,6 +82,7 @@
 
               var mtlLoader = new THREE.MTLLoader();;
               mtlLoader.load('assets/models/odm_texturing/odm_textured_model.obj.mtl', function (materials) {
+              // mtlLoader.load('assets/models/odm_texturing/odm_textured_model.mtl', function (materials) {
                   materials.preload();
 
                   var objLoader = new THREE.OBJLoader();
@@ -92,8 +97,6 @@
               renderer = new THREE.WebGLRenderer();
               renderer.setPixelRatio(window.devicePixelRatio);
               renderer.setSize(window_Width, window_Height);
-
-              // renderer.setPixelRatio( window.devicePixelRatio );
 				      // renderer.setSize( window.innerWidth, window.innerHeight );
 
               renderer.setClearColor(new THREE.Color("hsl(0, 0%, 10%)"));
@@ -109,9 +112,9 @@
               controls.update();
 
               // initialize object to perform world/screen calculations
-              projector = new THREE.Projector();
 
               raycaster = new THREE.Raycaster(); // create once
+              mouse = new THREE.Vector2();
 
               // when the mouse moves, call the given function
               document.addEventListener( 'mouseup', onDocumentMouseUp, false );
@@ -144,19 +147,32 @@
               // mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
               raycaster.setFromCamera( mouse, camera );
-              var intersects = raycaster.intersectObjects(scene.children, true);              
+              var intersects = raycaster.intersectObjects(scene.children, true);     
+              // var intersects = raycaster.intersectObjects(scene.children);              
               // if there is one (or more) intersections
               if ( intersects.length > 0 )
               {
                 var intersect = intersects[0];
-                console.log(intersect);
+                // if( intersect.object.name == 'bridge' ) {
                 if( intersect.object.parent.name == 'bridge' ) {
                   // click bridge, add
-                  console.log('picked');
+                  // var str = `picked. ${intersect.point}`;
+                  // console.log(str);
 
-                  // var voxel = new THREE.Mesh( cubeGeo, cubeMaterial );
-                  var voxel = new THREE.Mesh( cubeGeo, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
+                  // var voxel = new THREE.Mesh( cubeGeo, cubeMaterial );0x33cc33
+                  // var voxel = new THREE.Mesh( cubeGeo, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
+                  var voxel;
+                  var meshLambertMaterial;
+                  if( isXDown ) {
+                    meshLambertMaterial = new THREE.MeshLambertMaterial( {  color: 0xcc0000, side: THREE.DoubleSide } );
+                  } else if ( isZDown ) {
+                    meshLambertMaterial = new THREE.MeshLambertMaterial( {  color: 0x33cc33, side: THREE.DoubleSide } );
+                  } else {
+                    meshLambertMaterial = new THREE.MeshLambertMaterial( {  color: 0x888888, side: THREE.DoubleSide } );
+                  }
+                  voxel = new THREE.Mesh( cubeGeo, meshLambertMaterial );
                   voxel.position.copy( intersect.point );
+                  voxel.name = `box_${intersect.point.x}_${intersect.point.y}_${intersect.point.z}`;
 
                   // voxel.position.copy( intersect.point ).add( intersect.face.normal );
                   // voxel.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
@@ -169,22 +185,28 @@
                         scene.remove( intersect.object );
                         picked_objects.splice( picked_objects.indexOf( intersect.object ), 1 );
                     }
-                  } 
+                  } else {
+                    var itemName = intersect.object.name;
+                    var str = `${itemName} picked.`;
+                    alert(str);
+                  }
                 }
-                  // console.log(picked_objects);
-                  console.log(isShiftDown);
               }
             }
 
             function onDocumentKeyDown( event ) {
               switch ( event.keyCode ) {
                 case 16: isShiftDown = true; break;
+                case 88: isXDown = true;  break;
+                case 90: isZDown = true; break;
               }
             }
 
             function onDocumentKeyUp( event ) {
               switch ( event.keyCode ) {
                 case 16: isShiftDown = false; break;
+                case 88: isXDown = false;  break;
+                case 90: isZDown = false; break;
               }
             }
 
